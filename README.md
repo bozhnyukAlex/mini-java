@@ -1,137 +1,150 @@
-### An implementaion of Java-OOP mini-language
+# Mini Java
 
-This is a homework for functional programming course.
+**A Java-like object-oriented language implemented in OCaml.**
 
-License: LGPL
+[![Language: OCaml](https://img.shields.io/badge/implementation-OCaml-EC6813)](Java/lib/interpreter.ml)
+[![Build: Dune](https://img.shields.io/badge/build-Dune-555555)](Java/dune-project)
+[![License: LGPL v3](https://img.shields.io/badge/license-LGPL_v3-blue)](Java/COPYING.LESSER)
 
-Author: Bozhnyuk Alexander, bozhnyuks@mail.ru
+Mini Java explores how an object-oriented language works under the hood: parsing source into an AST, loading classes, resolving methods, maintaining runtime state, and evaluating programs. It includes an interactive REPL, a pretty-printer, and an AST-based identifier-renaming demonstration.
 
-Замечания. 
-- 1) Ключевые слова не могут являться именами классов
-- 2) Метод main ничего в себя не принимает, является просто точкой входа программы. Метод main - единственный.
-- 3) i++ и ++i эквиваленты i = i + 1. Ничего более
-- 4) StackOverflow не детектится
-- 5) Многомерные массивы не поддерживаются
-- 6) Приведение типов через () не поддерживается. 
-- 7) Метод equals при сравнении объектов вызывается в случае, если он переопределен. В противном случае происходит непосредственное сравнение ссылок.
-- 8) Работа с реплом: запуск факториала 
-    ```
-    > int fac1(int acc, int n) {if (n <= 1) return acc; else return fac1(acc * n, n - 1); }@
-    > int fac(int n) {return fac1(1, n);}@
-    > fac(5)@
-    > Result: VInt (120)
-    ```
-- 9) Работа с реплом: ArrayTypeMismatchException: 
-    ```
-    > Object[] x = new Object[3];@    
-    Statement evaluated
-    > x[0] = new Circle(5);@
-    ArrayStoreException
-    > Object[] y = new Figure[3];@
-    Statement evaluated
-    > y[0] = new QuickSorter();@
-    Wrong assign type!
+Developed as a functional programming course project, it implements a focused subset of Java syntax and semantics. It runs source through an OCaml interpreter; Java bytecode and JVM execution are outside its scope.
 
-    ```
-- 10) Работа с реплом: show_available_methods@
-    ```
-    > int id(int n) {return n;}@                    
-    Method added
-    > int square(int n) {return n*n;}@
-    Method added
-    > show_available_methods@
-    Current available methods:
-    "int square(int n) {return n*n;}"
-    "int id(int n) {return n;}"
-    ```
+[Quick start](#quick-start) · [Try the REPL](#try-the-repl) · [Language features](#language-features) · [Implementation](#implementation) · [Tests and demos](#tests-and-demos) · [Limitations](#limitations)
 
-Features done:
+## Quick start
 
-- 1 Загрузка классов
-- 2 Стандартные конструкции: ветвления, циклы
-- 3 Стандартные типы: числа, строки и операции с ними
-- 4 Стандартный тип массива и операции с ним.
-- 5 ООП: классы, публичные методы, публичные поля.  
-- 6 ООП: стандартный базовый класс Object
-- 7 ООП: наследование
-- 8 Рекурсия
-- 9 Тесты, в том числе и тест паттерна Visitor, требуемый тест на массивы
-- 10 REPL и набор классов для стандартной библиотеки.
-- 11 Типы данных - boolean и char как полноценные
-- 12 Cтроки - теперь полноценные объекты класса String, загружаемого заранее.
+### Requirements
 
-Класс Object: 
-```
-public class Object {
-    public boolean equals(Object obj) {
-        return this == obj;
-    }
-    
-    public String toString() {
-    	return "Object";
-    }
-}
+- OCaml and an initialized [opam](https://opam.ocaml.org/doc/Install.html) switch.
+- Dune with support for the project's `2.7` configuration.
+- Dependencies declared in [`Java/Java.opam`](Java/Java.opam), including Opal and the PPX packages used for tests and derived printers.
+
+### Build and run
+
+```bash
+git clone https://github.com/bozhnyukAlex/mini-java.git
+cd mini-java/Java
+
+eval "$(opam env)"
+opam install . --deps-only --with-test
+
+dune build
+dune exec ./REPL.exe
 ```
 
-Класс String:
-```
-final class String {
-    public final char[] value;
+Run these commands from the `Java/` directory. The Makefile also provides `make all`, `make repl`, and `make test` shortcuts once dependencies are installed.
 
-    public String() {
-        this.value = new char[0];
-    }
+## Try the REPL
 
-    public String(String original) {
-        this.value = original.value;
-    }
+The REPL accepts **method definitions, statements, and expressions**. Finish each input with `@`; this delimiter tells the REPL to evaluate the accumulated input.
 
-    public String(char[] value) {
-        this.value = new char[value.length];
-        for (int i = 0; i < value.length; i++) {
-            this.value[i] = value[i];
-        }
-    }
+### Recursive factorial
 
-    public int length() {
-        return value.length;
-    }
+Define two methods, then evaluate an expression:
 
-    public String concat(String str) {
-        int otherLen = str.length();
-        if (str.length() == 0) {
-            return this;
-        }
-        int len = value.length;
-        char[] newValue = new char[len + otherLen];
-        for (int i = 0; i < len; i++) {
-            newValue[i] = value[i];
-        }
-        for (int j = len; j < len + otherLen; j++) {
-            newValue[j] = str.value[j - len];
-        }
-        return new String(newValue);
-    }
-
-    public boolean startsWith(String prefix, int toffset) {
-        char[] ta = value;
-        char[] pa = prefix.value;
-        int pc = prefix.length();
-        if ((toffset < 0) || (toffset > value.length - pc)) {
-            return false;
-        }
-        for (int i = toffset; i < toffset + pc; i++) {
-            if (ta[i] != pa[i - toffset]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    public boolean startsWith(String prefix) {
-        return startsWith(prefix, 0);
-    }
-}
+```text
+> int fac1(int acc, int n) { if (n <= 1) return acc; else return fac1(acc * n, n - 1); }@
+Method added
+> int fac(int n) { return fac1(1, n); }@
+Method added
+> fac(5)@
+Result: VInt (120)
 ```
 
+### Array type checks
 
+The REPL preloads sample classes such as `Figure`, `Circle`, and `QuickSorter`. These allow you to explore object arrays and assignment checks immediately:
+
+```text
+> Object[] x = new Object[3];@
+Statement evaluated
+> x[0] = new Circle(5);@
+ArrayStoreException
+> Object[] y = new Figure[3];@
+Statement evaluated
+> y[0] = new QuickSorter();@
+Wrong assign type!
+```
+
+These examples demonstrate the interpreter's array semantics, which differ from standard Java. See [Limitations](#limitations).
+
+### REPL commands
+
+| Command | Purpose |
+| --- | --- |
+| `show_available_methods@` | List methods defined in the current REPL session |
+| `show_var_table@` | Inspect local variables and their runtime values |
+| `show_curr_stdlib@` | Display the preloaded sample classes |
+| `exit@` | Exit the REPL |
+
+## Language features
+
+| Area | Implemented functionality |
+| --- | --- |
+| Values and expressions | Integers, booleans, characters, strings, arithmetic, comparisons, and logical operators |
+| Control flow | `if` / `else`, `while`, `for`, `break`, `continue`, and `return` |
+| Objects | Classes, fields, methods, object creation, and mutable object state |
+| Inheritance | Single inheritance, abstract classes and methods, method overriding, `this`, and `super` |
+| Methods and constructors | Method overloading, recursive calls, constructors, and constructor chaining |
+| Arrays | One-dimensional arrays, initialization, indexing, element updates, and assignment checks |
+| Modifiers | Support for modifiers including `public`, `static`, `final`, and `abstract` within the implemented subset |
+| Built-in classes | `Object` and a small `String` implementation with operations such as `length`, `concat`, and `startsWith` |
+| Language tooling | REPL, pretty-printing, and an AST-based identifier-renaming demonstration |
+
+The demos exercise these features with recursive factorial, sorting, constructor chains, inheritance, and the Visitor pattern.
+
+## Implementation
+
+The parser builds an AST using Opal parser combinators. The class loader prepares class definitions, inheritance relationships, methods, and constructors. The interpreter evaluates expressions and statements against runtime contexts containing object references, variables, scope information, and control-flow signals.
+
+| Source | Responsibility |
+| --- | --- |
+| [`Java/lib/ast.ml`](Java/lib/ast.ml) | AST definitions, runtime values, object and array references |
+| [`Java/lib/parser.ml`](Java/lib/parser.ml) | Parsers for expressions, statements, methods, and classes |
+| [`Java/lib/interpreter.ml`](Java/lib/interpreter.ml) | Class loading, built-in classes, runtime checks, and evaluation |
+| [`Java/lib/pretty_printer.ml`](Java/lib/pretty_printer.ml) | Formatting AST nodes as Java-like source |
+| [`Java/lib/transform.ml`](Java/lib/transform.ml) | Identifier-renaming demonstration with formatted change output |
+| [`Java/REPL.ml`](Java/REPL.ml) | Interactive session, sample classes, and inspection commands |
+| [`Java/lib/tests.ml`](Java/lib/tests.ml) | Inline tests |
+| [`Java/demos/`](Java/demos/) | Executable examples and expected output |
+
+## Tests and demos
+
+From `Java/`, run the existing test suite:
+
+```bash
+dune runtest
+```
+
+The project includes inline tests and Cram tests that compare demo output against [`Java/demos/tests.t`](Java/demos/tests.t).
+
+Run individual demos to inspect each stage:
+
+```bash
+dune exec ./demos/demoParserFirst.exe
+dune exec ./demos/demoClassLoader.exe
+dune exec ./demos/demoInterpreter.exe
+dune exec ./demos/demoPrettyPrinter.exe
+dune exec ./demos/demoTransformation.exe
+```
+
+`demoInterpreter` covers arithmetic, scope, loops, mutable objects and arrays, inheritance, recursion, constructor chaining, final fields and variables, overloading, and error cases. `demoTransformation` demonstrates renaming identifiers and prints the corresponding source changes.
+
+## Limitations
+
+This is an educational language implementation with deliberately limited Java compatibility:
+
+- Class names cannot be reserved keywords.
+- Whole-program execution expects a single `main` entry point with no arguments.
+- Multidimensional arrays and explicit casts such as `(Type) value` are unsupported.
+- Prefix and postfix increment are treated as incrementing assignments; their semantics do not fully match Java.
+- Stack overflow is not detected by the language runtime.
+- Array element checks can reject assignments that standard Java would allow, as shown in the REPL example.
+- Overridden `equals` methods are used for object equality; otherwise references are compared. This differs from standard Java's distinction between `==` and `equals`.
+
+## Author and license
+
+Created by [Alexander Bozhnyuk](https://github.com/bozhnyukAlex).
+
+Licensed under **GNU LGPL v3**. See [`Java/COPYING.LESSER`](Java/COPYING.LESSER) and [`Java/COPYING`](Java/COPYING).
